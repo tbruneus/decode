@@ -33,8 +33,9 @@ def read_file(filename: str) -> str:
     """
 
     try:
-        with codecs.open(filename, encoding='utf-8') as f:
-            return f.read()
+        with io.open(filename, encoding='utf-8', newline='') as f:
+            # Fix for inconsistent line breaks - all linebreaks are replaced with system default linebreaks
+            return re.sub('\r*\n', os.linesep, f.read())
     except IOError as ex:
         print(ex)
         sys.exit(1)
@@ -53,7 +54,6 @@ def write_file(output_file: str, output: str) -> None:
     try:
         with io.open(output_file, 'w', encoding='utf-8') as f:
             f.write(output)
-            # print('Output file saved as: '+output_file)
     except IOError as ex:
         print(ex)
         sys.exit(1)
@@ -109,9 +109,6 @@ def translate(text: str, transdict: dict) -> str:
     :param transdict:   the translation dictionary (key -> value)
     :return:            the translated text
     """
-
-    # Fix for CR CR LF line breaks
-    text = text.replace('\r\r\n', '\n')
 
     # Compile regex matching ciphertext keys from dictionary, sorted by key length (longest first)
     ciphers_pattern = re.compile('|'.join(sorted(transdict.keys(), key=len, reverse=True)))
@@ -243,7 +240,8 @@ def create_pdf(text: str, output_file: str, font_type: str, font_size: int,
         text = remove_tags(text)
 
     # Pagination
-    pages = re.split('\n{2,}', text.strip())
+    # Pages are split on empty lines (can contain whitespace)
+    pages = re.split('(?:[\n][ \t]*){2,}', text.strip())
     for index, page in enumerate(pages):
         frame = KeepInFrame(width, height, [Paragraph(page.replace('\n', '<br/>\n'), stylesheet["custom"])])
         w, h = frame.wrapOn(canvas, width, height)
